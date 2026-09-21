@@ -8,6 +8,7 @@ from app.api.dependencies import get_current_user
 from app.models.user import User
 from app.models.dataset import Dataset
 from app.models.chat import ChatSession, ChatMessage
+from app.models.workspace import WorkspaceMember
 from app.services.ingestion.parser import parse_file
 from app.services.ingestion.storage import get_file_path
 from app.services.ai.chat_engine import ChatEngine
@@ -35,6 +36,18 @@ async def send_message(body: dict, db: Session = Depends(get_db), current_user: 
     dataset = db.query(Dataset).filter(Dataset.id == dataset_uuid).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+        
+    # Multi-tenant Workspace Security Check
+    if current_user.role not in ["admin", "superadmin"] and dataset.uploaded_by != current_user.id:
+        if dataset.workspace_id:
+            membership = db.query(WorkspaceMember).filter(
+                WorkspaceMember.workspace_id == dataset.workspace_id,
+                WorkspaceMember.user_id == current_user.id
+            ).first()
+            if not membership:
+                raise HTTPException(status_code=403, detail="You do not have access to this dataset")
+        else:
+            raise HTTPException(status_code=403, detail="You do not have access to this dataset")
         
     if not session_id_raw:
         session = ChatSession(
@@ -76,9 +89,8 @@ async def send_message(body: dict, db: Session = Depends(get_db), current_user: 
     try:
         file_path = get_file_path(dataset.storage_path)
         df = parse_file(file_path, dataset.file_type)
-        provider = MockAIProvider()
         
-        # Select AI Provider
+        # Select AI Provider if configured (Gemini / OpenAI)
         if settings.AI_PROVIDER.lower() == "gemini" and settings.AI_API_KEY:
             try:
                 provider = GeminiProvider()
@@ -86,25 +98,34 @@ async def send_message(body: dict, db: Session = Depends(get_db), current_user: 
                 provider = MockAIProvider()
         else:
             provider = MockAIProvider()
-            
+                
         engine = ChatEngine(provider)
         result = await engine.answer(
-            message,
-            df,
-            {"name": dataset.name, "dataset_type": dataset.dataset_type or "General"}
+            question=message,
+            df=df,
+            dataset_info={"name": dataset.name, "dataset_type": dataset.dataset_type or "General"},
+            session_id=str(session_id)
         )
-        answer = result.get("answer", "I computed the metrics for this dataset based on your request.")
+        answer = result.get("answer", "Computed verified metrics for this dataset.")
+        analysis = result.get("analysis", {})
         context = result.get("context", {})
-    except Exception:
-        answer = "The uploaded dataset does not contain sufficient column metadata to compute an answer for this question."
+        methodology = result.get("methodology", "Deterministic aggregation")
+    except Exception as e:
+        answer = f"The dataset could not be analyzed for this query: {str(e)}"
+        analysis = {}
         context = {}
+        methodology = "Error"
         
     assistant_msg = ChatMessage(
         id=uuid.uuid4(),
         session_id=session_id,
         role="assistant",
         content=answer,
-        metadata_json=context
+        metadata_json={
+            "analysis": analysis,
+            "context": context,
+            "methodology": methodology
+        }
     )
     db.add(assistant_msg)
     db.commit()
@@ -112,7 +133,9 @@ async def send_message(body: dict, db: Session = Depends(get_db), current_user: 
     return {
         "message": answer,
         "session_id": str(session_id),
-        "context": context
+        "analysis": analysis,
+        "context": context,
+        "methodology": methodology
     }
 
 @router.get("/sessions", response_model=list)

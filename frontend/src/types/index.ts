@@ -126,7 +126,9 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  analysis?: any;
   context?: any;
+  methodology?: string;
   timestamp?: string;
 }
 

@@ -39,7 +39,7 @@ import { api } from "@/lib/api";
 
 export default function DatasetDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = (params?.id as string) || "";
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

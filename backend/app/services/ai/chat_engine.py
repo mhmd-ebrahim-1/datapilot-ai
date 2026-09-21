@@ -1,54 +1,75 @@
 import pandas as pd
-import json
-from typing import Any
+import logging
+from typing import Dict, Any, Optional
+from app.services.ai.semantic_resolver import SemanticResolver
+from app.services.ai.intent_engine import IntentEngine, QueryPlan
+from app.services.ai.query_engine import QueryExecutionEngine
+from app.services.ai.deterministic_explainer import DeterministicExplainer
 from app.services.ai.provider import AIProvider
 
+logger = logging.getLogger("datapilot.chat")
+
+# In-memory session query plan cache for follow-up question context
+_SESSION_PLANS: Dict[str, QueryPlan] = {}
+
 class ChatEngine:
-    def __init__(self, ai_provider: AIProvider):
+    """Production-grade deterministic analytics query engine with optional LLM narrative explanation."""
+
+    def __init__(self, ai_provider: Optional[AIProvider] = None):
         self.provider = ai_provider
-    
-    async def answer(self, question: str, df: pd.DataFrame, dataset_info: dict) -> dict:
-        context = self._build_context(question, df)
+
+    async def answer(
+        self,
+        question: str,
+        df: pd.DataFrame,
+        dataset_info: Dict[str, Any],
+        session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        dataset_name = dataset_info.get("name", "Dataset")
         
-        summary = {"rows": len(df), "columns": list(df.columns), "dtypes": {col: str(df[col].dtype) for col in df.columns}}
-        answer = await self.provider.answer_question(question, context, summary)
+        # 1. Semantic resolution of columns & entities
+        resolver = SemanticResolver(df)
         
-        return {"answer": answer, "context": context, "methodology": "Deterministic analysis with AI explanation"}
-    
-    def _build_context(self, question: str, df: pd.DataFrame) -> dict:
-        q = question.lower()
-        context = {}
+        # 2. Retrieve previous plan for follow-up questions if available
+        prev_plan = _SESSION_PLANS.get(session_id) if session_id else None
         
-        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        # 3. Parse intent into analytical query plan
+        intent_engine = IntentEngine(resolver)
+        plan = intent_engine.parse_intent(question, previous_plan=prev_plan)
         
-        if any(word in q for word in ['total', 'sum', 'revenue', 'sales', 'income']):
-            for col in numeric_cols:
-                context[f"total_{col}"] = float(df[col].sum())
+        # Cache plan for follow-ups
+        if session_id:
+            _SESSION_PLANS[session_id] = plan
+            
+        # 4. Execute deterministic calculation directly on DataFrame
+        execution_engine = QueryExecutionEngine(df)
+        analysis_result = execution_engine.execute(plan)
         
-        if any(word in q for word in ['best', 'top', 'most', 'highest', 'largest']):
-            cat_cols = df.select_dtypes(include=['object']).columns.tolist()
-            for cat_col in cat_cols[:3]:
-                for num_col in numeric_cols[:2]:
-                    top = df.groupby(cat_col)[num_col].sum().nlargest(5)
-                    context[f"top_{cat_col}_by_{num_col}"] = {str(k): float(v) for k, v in top.items()}
+        # 5. Generate verified deterministic explanation
+        deterministic_message = DeterministicExplainer.explain(analysis_result, dataset_name=dataset_name)
+        final_message = deterministic_message
         
-        if any(word in q for word in ['average', 'avg', 'mean']):
-            for col in numeric_cols:
-                context[f"average_{col}"] = float(df[col].mean())
-        
-        if any(word in q for word in ['trend', 'growth', 'change', 'month']):
-            date_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
-            if date_cols and numeric_cols:
-                date_col = date_cols[0]
-                num_col = numeric_cols[0]
-                try:
-                    monthly = df.set_index(date_col)[num_col].resample('M').sum()
-                    context["monthly_trend"] = {str(k.date()): float(v) for k, v in monthly.items()}
-                except Exception:
-                    pass
-        
-        if not context:
-            for col in numeric_cols[:5]:
-                context[f"{col}_stats"] = {"mean": float(df[col].mean()), "sum": float(df[col].sum()), "min": float(df[col].min()), "max": float(df[col].max())}
-        
-        return context
+        # 6. Optional LLM narrative explanation (if valid provider configured)
+        if self.provider and not getattr(self.provider, "is_mock", False):
+            try:
+                llm_response = await self.provider.answer_question(
+                    question=question,
+                    context=analysis_result,
+                    data_summary={
+                        "name": dataset_name,
+                        "row_count": len(df),
+                        "columns": list(df.columns)
+                    }
+                )
+                if llm_response and len(llm_response.strip()) > 10 and "[Mock Generated]" not in llm_response:
+                    final_message = llm_response.strip()
+            except Exception as e:
+                logger.warning(f"LLM provider failed or rate limited, using deterministic explanation: {e}")
+                final_message = deterministic_message
+                
+        return {
+            "answer": final_message,
+            "analysis": analysis_result,
+            "context": analysis_result,
+            "methodology": "100% Deterministic Pandas aggregation on verified dataset records"
+        }

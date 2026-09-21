@@ -1,24 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Sparkles, Bot, User as UserIcon } from "lucide-react";
+import { Send, Loader2, Sparkles, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SuggestedQuestions } from "@/components/ai/suggested-questions";
+import { ChatMessageItem, ChatMessageData } from "@/components/ai/chat-message";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  context?: Record<string, any>;
-  timestamp: string;
-}
-
 export function ChatInterface({ datasetId }: { datasetId: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +27,7 @@ export function ChatInterface({ datasetId }: { datasetId: string }) {
   const handleSend = async (text: string) => {
     if (!text.trim() || !datasetId) return;
 
-    const userMessage: Message = {
+    const userMessage: ChatMessageData = {
       id: Date.now().toString(),
       role: "user",
       content: text,
@@ -46,7 +39,13 @@ export function ChatInterface({ datasetId }: { datasetId: string }) {
     setIsLoading(true);
 
     try {
-      const res = await api.post<{ message: string; session_id: string; context?: any }>("/api/v1/chat/", {
+      const res = await api.post<{ 
+        message: string; 
+        session_id: string; 
+        analysis?: any; 
+        context?: any;
+        methodology?: string;
+      }>("/api/v1/chat/", {
         dataset_id: datasetId,
         message: text,
         session_id: sessionId
@@ -56,25 +55,26 @@ export function ChatInterface({ datasetId }: { datasetId: string }) {
         setSessionId(res.session_id);
       }
 
-      const assistantMessage: Message = {
+      const assistantMessage: ChatMessageData = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: res.message || "I've analyzed the dataset for your query.",
-        context: res.context,
+        analysis: res.analysis || res.context?.analysis,
+        methodology: res.methodology,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
       toast({
-        title: "Chat Error",
-        description: error.message || "Failed to communicate with analytics engine.",
+        title: "Analytics Query Failed",
+        description: error.message || "Failed to communicate with deterministic query engine.",
         variant: "destructive"
       });
-      const errorMessage: Message = {
+      const errorMessage: ChatMessageData = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "I encountered an issue computing the requested metrics. Please verify the dataset column mappings or try a different phrasing.",
+        content: "I encountered an issue computing the requested metrics for this query. Please check if the requested column exists in your dataset.",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -84,76 +84,43 @@ export function ChatInterface({ datasetId }: { datasetId: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full border rounded-lg overflow-hidden bg-card">
-      <div className="p-3 border-b bg-muted/30 flex items-center justify-between text-xs font-medium">
-        <span className="flex items-center gap-1.5 text-indigo-600 font-semibold">
-          <Sparkles className="h-4 w-4" /> DataPilot Deterministic Assistant
+    <div className="flex flex-col h-full border rounded-xl overflow-hidden bg-card shadow-sm">
+      <div className="p-3.5 border-b bg-muted/20 flex items-center justify-between text-xs font-medium">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-md bg-indigo-600/10 text-indigo-600 flex items-center justify-center">
+            <Sparkles className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <span className="font-bold text-foreground">Ask DataPilot AI</span>
+            <span className="text-muted-foreground ml-2 text-[11px] hidden sm:inline">100% Grounded Deterministic Analytics</span>
+          </div>
+        </div>
+        <span className="text-[11px] text-muted-foreground font-mono bg-muted/60 px-2 py-0.5 rounded border">
+          Dataset: {datasetId.slice(0, 8)}...
         </span>
-        <span className="text-muted-foreground font-mono">Dataset: {datasetId.slice(0, 8)}...</span>
       </div>
 
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-4 sm:p-6">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-16 text-center">
-            <div className="h-12 w-12 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 mb-4">
-              <Bot className="h-6 w-6" />
+          <div className="flex flex-col items-center justify-center h-full py-12 text-center max-w-lg mx-auto">
+            <div className="h-14 w-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center text-indigo-600 mb-4 shadow-sm">
+              <Bot className="h-7 w-7" />
             </div>
-            <h3 className="font-semibold text-base mb-1">Ask questions about your data</h3>
-            <p className="text-xs text-muted-foreground max-w-sm mb-6">
-              Answers are computed directly with exact mathematical aggregations and verified facts.
+            <h3 className="font-bold text-lg mb-1.5 text-foreground">Ask anything about your dataset</h3>
+            <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
+              Every answer is calculated directly from your actual records using deterministic Pandas algorithms. The LLM never invents numbers.
             </p>
             <SuggestedQuestions onSelect={handleSend} />
           </div>
         ) : (
-          <div className="space-y-4 pb-4">
+          <div className="space-y-6 pb-4">
             {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">
-                    DP
-                  </div>
-                )}
-                <div className="space-y-1 max-w-[80%]">
-                  <div
-                    className={`p-3.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-indigo-600 text-white rounded-tr-none"
-                        : "bg-muted text-foreground rounded-tl-none border"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                    {/* Context data badges if present */}
-                    {msg.context && Object.keys(msg.context).length > 0 && (
-                      <div className="mt-2.5 pt-2 border-t border-muted-foreground/20 text-xs font-mono space-y-1">
-                        <p className="font-sans text-[10px] text-muted-foreground uppercase font-semibold">Verified Metrics Context:</p>
-                        {Object.entries(msg.context).slice(0, 3).map(([k, v]) => (
-                          <div key={k} className="flex justify-between gap-4 text-indigo-700 dark:text-indigo-300">
-                            <span>{k}:</span>
-                            <span className="font-bold">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className={`text-[10px] text-muted-foreground px-1 ${msg.role === "user" ? "text-right" : "text-left"}`}>
-                    {msg.timestamp}
-                  </div>
-                </div>
-                {msg.role === "user" && (
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs text-muted-foreground border">
-                    <UserIcon className="h-4 w-4" />
-                  </div>
-                )}
-              </div>
+              <ChatMessageItem key={msg.id} message={msg} />
             ))}
             {isLoading && (
-              <div className="flex items-center gap-2 text-muted-foreground text-xs p-3">
+              <div className="flex items-center gap-2.5 text-muted-foreground text-xs p-3.5 rounded-xl bg-muted/30 border animate-pulse">
                 <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
-                <span>DataPilot is querying dataset and computing aggregations...</span>
+                <span className="font-medium">DataPilot is querying dataset and computing verified aggregations...</span>
               </div>
             )}
             <div ref={scrollRef} />
@@ -161,16 +128,20 @@ export function ChatInterface({ datasetId }: { datasetId: string }) {
         )}
       </ScrollArea>
 
-      <div className="p-3.5 border-t bg-background">
-        <form onSubmit={(e) => { e.preventDefault(); handleSend(input); }} className="flex gap-2">
+      <div className="p-3.5 border-t bg-background/80 backdrop-blur-sm">
+        <form onSubmit={(e) => { e.preventDefault(); handleSend(input); }} className="flex gap-2 max-w-4xl mx-auto">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question (e.g. 'What was the total revenue by region?')..."
+            placeholder="Ask a question (e.g. 'What are the top 5 products by sales?')..."
             disabled={isLoading}
-            className="flex-1 text-sm h-11"
+            className="flex-1 text-sm h-11 bg-card border-border/80 focus-visible:ring-indigo-500"
           />
-          <Button type="submit" disabled={isLoading || !input.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white h-11 px-5">
+          <Button 
+            type="submit" 
+            disabled={isLoading || !input.trim()} 
+            className="bg-indigo-600 hover:bg-indigo-700 text-white h-11 px-5 font-semibold shadow-sm"
+          >
             <Send className="h-4 w-4 mr-1.5" /> Send
           </Button>
         </form>

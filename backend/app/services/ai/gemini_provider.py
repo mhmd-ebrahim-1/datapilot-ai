@@ -39,18 +39,26 @@ IMPORTANT: Only reference numbers from the provided metrics. Do not invent value
             return []
     
     async def answer_question(self, question: str, context: dict, data_summary: dict) -> str:
-        prompt = f"""You are a data analyst assistant. Answer this question about a business dataset.
+        prompt = f"""You are DataPilot AI, an expert business data analyst.
 
-Question: {question}
+Strict Grounding Rules:
+1. Never invent or hallucinate any numbers or metrics.
+2. Never recalculate or modify verified analytical figures provided in the Verified Analysis Context.
+3. Explain and highlight only the supplied verified metrics in a clear, executive-ready tone.
+4. Format your answer using clean Markdown with bold numbers and bullet points.
 
-Data Context:
+User Question:
+{question}
+
+Verified Analysis Context (Calculated deterministically from dataset):
 {json.dumps(context, default=str)}
 
-Dataset Summary:
-{json.dumps(data_summary, default=str)}
+Dataset Info:
+- Name: {data_summary.get('name', 'Dataset')}
+- Total Rows: {data_summary.get('row_count', 'N/A')}
+- Available Columns: {json.dumps(data_summary.get('columns', []))}
 
-Answer based ONLY on the provided data. If the data cannot answer the question, say so clearly.
-Be concise and professional. Reference specific numbers from the context."""
+Provide your executive analytical summary now:"""
         
         response = self.model.generate_content(prompt)
         return response.text
@@ -67,7 +75,7 @@ Return JSON: {{"dataset_type": "Sales|Marketing|Finance|HR|Inventory|Operations|
             if "```" in text:
                 text = text.split("```json")[-1].split("```")[0] if "```json" in text else text.split("```")[1].split("```")[0]
             return json.loads(text.strip())
-        except:
+        except Exception:
             return {"dataset_type": "General", "confidence": 0.5, "reasoning": "Could not classify"}
     
     async def generate_report_summary(self, analysis_data: dict) -> str:
