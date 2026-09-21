@@ -142,7 +142,7 @@ def clean_dataset(df: pd.DataFrame) -> Dict[str, Any]:
                 continue
             # Fast check if likely a date column (contains dashes or slashes or date keywords)
             if any(k in col.lower() for k in ['date', 'time', 'day', 'month', 'year', 'period']) or s_clean.str.contains(r'[-/]', regex=True).mean() > 0.6:
-                parsed = pd.to_datetime(cleaned[col], errors='coerce')
+                parsed = pd.to_datetime(cleaned[col], errors='coerce', format='mixed')
                 valid_ratio = parsed.notna().sum() / max(cleaned[col].notna().sum(), 1)
                 if valid_ratio > 0.8:
                     cleaned[col] = parsed

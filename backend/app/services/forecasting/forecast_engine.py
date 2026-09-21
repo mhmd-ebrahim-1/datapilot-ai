@@ -27,7 +27,7 @@ def generate_forecast(
             # Try parsing columns as dates
             for col in df.select_dtypes(include=['object']).columns:
                 try:
-                    parsed = pd.to_datetime(df[col].dropna().head(10), errors='coerce')
+                    parsed = pd.to_datetime(df[col].dropna().head(10), errors='coerce', format='mixed')
                     if parsed.notna().sum() >= 8:
                         date_col = col
                         break
