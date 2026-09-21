@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "datasets": "Datasets",
+    "reports": "Reports",
+    "chat": "AI Chat",
+    "settings": "Settings",
+    "admin": "Admin"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "upload": "Upload",
+    "download": "Download",
+    "loading": "Loading...",
+    "search": "Search..."
+  },
+  "datasets": {
+    "title": "Datasets",
+    "upload": "Upload Dataset",
+    "empty": "No datasets yet",
+    "emptyAction": "Upload your first dataset"
+  },
+  "chat": {
+    "title": "Ask DataPilot",
+    "placeholder": "Ask a question about your data...",
+    "send": "Send"
+  }
+}

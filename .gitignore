@@ -1,0 +1,90 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# Node.js
+node_modules/
+.next/
+out/
+.nuxt/
+.cache/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.nyc_output/
+coverage/
+
+# Docker
+*.log
+
+# Uploads and user data
+uploads/
+storage/
+*.csv
+*.xlsx
+*.xls
+!backend/data/demo_*.csv
+!backend/data/demo_*.xlsx
+!tests/data/
+
+# Generated reports
+generated_reports/
+
+# Database
+*.db
+*.sqlite3
+
+# Secrets
+*.pem
+*.key
+*.cert
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Misc
+*.bak
+*.tmp
+*.temp
+
