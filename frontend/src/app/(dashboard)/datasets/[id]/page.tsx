@@ -113,31 +113,49 @@ export default function DatasetDetailPage() {
 
   if (datasetLoading) return <LoadingSkeleton />;
   if (!dataset) return <div className="p-8 text-center">Dataset not found.</div>;
-
-  const qualityScoreVal = dataset.quality_score || profileData?.quality_score || 95.0;
+  const isFailed = dataset.status === "failed";
+  const qualityScoreVal = dataset.quality_score ?? profileData?.quality_score;
   const profileDetails = dataset.profile || profileData?.profile || {};
   const kpis = analysisData?.kpis || [];
   const charts = analysisData?.charts || [];
 
   return (
     <div className="space-y-6">
+      {isFailed && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-semibold text-sm">Dataset Ingestion Failed</h3>
+            <p className="text-xs text-red-700 mt-1">
+              {dataset.error_message || "An error occurred while parsing and processing this dataset. Please verify the spreadsheet format and try re-uploading."}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{dataset.name}</h1>
-            <Badge variant="outline" className="border-indigo-300 text-indigo-700 bg-indigo-50">
-              {dataset.dataset_type || "General Analytics"}
+            <Badge 
+              variant="outline" 
+              className={isFailed ? "border-red-300 text-red-700 bg-red-50" : "border-indigo-300 text-indigo-700 bg-indigo-50"}
+            >
+              {isFailed ? "Processing Failed" : dataset.dataset_type || "General Analytics"}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {dataset.row_count?.toLocaleString() || 0} rows • {dataset.column_count || 0} columns • Quality Score: {qualityScoreVal.toFixed(1)}/100
+            {isFailed 
+              ? "Dataset processing failed • No records available"
+              : `${dataset.row_count !== undefined && dataset.row_count !== null ? dataset.row_count.toLocaleString() : 0} rows • ${dataset.column_count || 0} columns • Quality Score: ${qualityScoreVal !== undefined && qualityScoreVal !== null ? `${qualityScoreVal.toFixed(1)}/100` : "Calculating..."}`
+            }
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
             onClick={handleGeneratePdf} 
-            disabled={isGeneratingReport}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            disabled={isGeneratingReport || isFailed}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
           >
             <Download className="mr-2 h-4 w-4" />
             {isGeneratingReport ? "Generating PDF..." : "Export PDF Report"}
@@ -253,11 +271,11 @@ export default function DatasetDetailPage() {
         {/* 3. QUALITY SCORE TAB */}
         <TabsContent value="quality">
           <QualityScore 
-            score={Math.round(qualityScoreVal)} 
-            completeness={96} 
-            uniqueness={98} 
-            validity={94} 
-            consistency={92} 
+            score={Math.round(qualityScoreVal ?? 0)} 
+            completeness={Math.round(profileDetails?.quality_metrics?.completeness ?? 95)} 
+            uniqueness={Math.round(profileDetails?.quality_metrics?.uniqueness ?? 98)} 
+            validity={Math.round(profileDetails?.quality_metrics?.validity ?? 94)} 
+            consistency={Math.round(profileDetails?.quality_metrics?.consistency ?? 92)} 
           />
         </TabsContent>
 
@@ -329,9 +347,7 @@ export default function DatasetDetailPage() {
               {
                 title: "Healthy Data Quality & Record Completeness",
                 category: "Data Integrity",
-                severity: "info",
-                desc: `Overall data completeness rated at ${qualityScoreVal.toFixed(1)}/100 with zero critical null anomalies.`,
-                rec: "Dataset is fully compliant for automated monthly trend forecasting and management reporting."
+                desc: `Overall data completeness rated at ${qualityScoreVal !== undefined && qualityScoreVal !== null ? `${qualityScoreVal.toFixed(1)}/100` : "healthy levels"} with minimal missing values.`,
               },
               {
                 title: "Temporal Seasonality Observed",

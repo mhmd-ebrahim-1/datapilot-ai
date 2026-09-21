@@ -1,5 +1,7 @@
 import os
 import uuid
+import logging
+import traceback
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from sqlalchemy.orm import Session
@@ -23,20 +25,31 @@ from app.services.profiling.quality_scorer import calculate_quality_score
 from app.services.profiling.type_detector import detect_dataset_type
 from app.services.billing.usage_service import increment_usage, check_usage_allowed
 
+logger = logging.getLogger("datapilot.datasets")
 router = APIRouter(prefix="/api/v1/datasets", tags=["Datasets"])
 
 def process_dataset_synchronously(dataset: Dataset, db: Session):
-    """Perform dataset parsing, cleaning, profiling, type detection and scoring."""
+    """Perform dataset parsing, cleaning, profiling, type detection and scoring with complete error capture."""
     try:
         dataset.status = "processing"
+        dataset.error_message = None
         db.commit()
         
         file_path = get_file_path(dataset.storage_path)
-        df = parse_file(file_path, dataset.file_type or "text/csv")
+        logger.info(f"Starting synchronous ingestion for dataset {dataset.id} ({dataset.original_filename}) from {file_path}")
         
+        # 1. Parse file
+        df = parse_file(file_path, dataset.file_type or "text/csv")
+        if df is None or df.empty:
+            raise ValueError("Parsed dataset contains 0 rows or empty data.")
+            
+        # 2. Clean dataset
         clean_result = clean_dataset(df)
         cleaned_df = clean_result["cleaned_df"]
-        
+        if cleaned_df.empty or len(cleaned_df.columns) == 0:
+            raise ValueError("Dataset has no valid columns or rows after cleaning.")
+            
+        # 3. Profile & Quality scoring
         profile = profile_dataframe(cleaned_df)
         quality = calculate_quality_score(cleaned_df, profile)
         type_info = detect_dataset_type(cleaned_df)
@@ -48,10 +61,20 @@ def process_dataset_synchronously(dataset: Dataset, db: Session):
         dataset.profile_json = profile
         dataset.cleaning_summary_json = clean_result.get("changes_log", [])
         dataset.status = "ready"
+        dataset.error_message = None
+        
         db.commit()
         db.refresh(dataset)
+        logger.info(f"Dataset {dataset.id} successfully processed: {dataset.row_count} rows, {dataset.column_count} cols, score={dataset.quality_score}")
     except Exception as e:
+        error_detail = str(e.detail) if hasattr(e, 'detail') else str(e)
+        logger.error(f"Failed to process dataset {dataset.id}: {error_detail}\n{traceback.format_exc()}")
+        
         dataset.status = "failed"
+        dataset.error_message = error_detail
+        dataset.row_count = None
+        dataset.column_count = None
+        dataset.quality_score = None
         db.commit()
         db.refresh(dataset)
 
@@ -105,15 +128,8 @@ async def upload_dataset(
     # Increment usage counter
     increment_usage(db, workspace.id, "upload")
     
-    # Process dataset (synchronously or fallback)
-    try:
-        process_dataset_synchronously(dataset, db)
-    except Exception:
-        try:
-            from app.tasks.analysis_tasks import process_dataset_task
-            process_dataset_task.delay(str(dataset.id))
-        except Exception:
-            pass
+    # Process dataset synchronously
+    process_dataset_synchronously(dataset, db)
 
     return {
         "id": str(dataset.id),
@@ -126,6 +142,7 @@ async def upload_dataset(
         "dataset_type": dataset.dataset_type,
         "quality_score": dataset.quality_score,
         "status": dataset.status,
+        "error_message": dataset.error_message,
         "created_at": str(dataset.created_at)
     }
 
@@ -162,6 +179,7 @@ def list_datasets(
             "dataset_type": d.dataset_type,
             "quality_score": d.quality_score,
             "status": d.status,
+            "error_message": d.error_message,
             "created_at": str(d.created_at)
         }
         for d in datasets
@@ -185,6 +203,7 @@ def get_dataset(dataset_id: uuid.UUID, current_user: User = Depends(get_current_
         "dataset_type": dataset.dataset_type,
         "quality_score": dataset.quality_score,
         "status": dataset.status,
+        "error_message": dataset.error_message,
         "profile": dataset.profile_json,
         "cleaning_summary": dataset.cleaning_summary_json,
         "created_at": str(dataset.created_at)
@@ -203,9 +222,15 @@ def preview_dataset(
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
         
+    if dataset.status == "failed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot preview dataset because processing failed: {dataset.error_message or 'Unknown processing error'}"
+        )
+        
     file_path = get_file_path(dataset.storage_path)
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Dataset source file not found")
+        raise HTTPException(status_code=404, detail="Dataset source file not found on disk")
         
     df = parse_file(file_path, dataset.file_type or "text/csv")
     
@@ -219,6 +244,7 @@ def preview_dataset(
     end_idx = start_idx + page_size
     paged_df = df.iloc[start_idx:end_idx]
     
+    # Format nulls to None for clean JSON serialization
     rows = paged_df.replace({float('nan'): None}).to_dict(orient="records")
     columns = [{"key": col, "label": col, "type": str(df[col].dtype)} for col in df.columns]
     
@@ -236,6 +262,12 @@ def get_dataset_profile(dataset_id: uuid.UUID, current_user: User = Depends(get_
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.status != "deleted").first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+        
+    if dataset.status == "failed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot profile dataset because processing failed: {dataset.error_message or 'Unknown processing error'}"
+        )
         
     if not dataset.profile_json:
         file_path = get_file_path(dataset.storage_path)

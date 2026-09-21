@@ -49,6 +49,7 @@ export interface Dataset {
   quality_score?: number;
   qualityScore?: number;
   status: "uploaded" | "processing" | "ready" | "failed" | "deleted" | string;
+  error_message?: string;
   profile?: any;
   profile_json?: any;
   cleaning_summary?: any;

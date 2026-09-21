@@ -5,6 +5,7 @@ from datetime import datetime
 
 class DatasetResponse(BaseModel):
     id: UUID
+    workspace_id: Optional[UUID] = None
     name: str
     original_filename: str
     file_type: str
@@ -14,6 +15,7 @@ class DatasetResponse(BaseModel):
     dataset_type: Optional[str] = None
     quality_score: Optional[float] = None
     status: str
+    error_message: Optional[str] = None
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
@@ -24,6 +26,7 @@ class DatasetPreviewResponse(BaseModel):
     total_rows: int
     page: int
     page_size: int
+    total_pages: Optional[int] = 1
 
 class DatasetProfileResponse(BaseModel):
     profile: Dict[str, Any]
