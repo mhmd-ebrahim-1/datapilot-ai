@@ -72,7 +72,7 @@ async def send_message(body: dict, db: Session = Depends(get_db), current_user: 
     )
     db.add(user_msg)
     
-    # 1. Deterministic calculation using Pandas & ChatEngine
+    # Deterministic calculation using Pandas & ChatEngine
     try:
         file_path = get_file_path(dataset.storage_path)
         df = parse_file(file_path, dataset.file_type)
@@ -95,7 +95,7 @@ async def send_message(body: dict, db: Session = Depends(get_db), current_user: 
         )
         answer = result.get("answer", "I computed the metrics for this dataset based on your request.")
         context = result.get("context", {})
-    except Exception as e:
+    except Exception:
         answer = "The uploaded dataset does not contain sufficient column metadata to compute an answer for this question."
         context = {}
         

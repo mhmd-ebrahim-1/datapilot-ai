@@ -85,7 +85,7 @@ def refresh_token(body: dict, db: Session = Depends(get_db)):
         
     user_id = payload.get("sub")
     try:
-        user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        user_uuid = uuid.UUID(str(user_id)) if isinstance(user_id, str) else user_id
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid user ID in token")
         

@@ -2,10 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from uuid import UUID
 from app.config.database import get_db
-from app.api.dependencies import get_current_user
 from app.models.insight import Insight
 
-router = APIRouter()
 router = APIRouter(prefix="/api/v1/insights", tags=["Insights"])
 
 @router.get("/{analysis_id}")

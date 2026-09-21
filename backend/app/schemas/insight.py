@@ -9,7 +9,7 @@ class InsightResponse(BaseModel):
     title: str
     category: str
     severity: str
-    description: Optional[str] = None
+    description: str
     recommendation: Optional[str] = None
     supporting_metrics_json: Optional[Dict[str, Any]] = None
     created_at: datetime

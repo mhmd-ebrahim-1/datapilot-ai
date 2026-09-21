@@ -65,7 +65,7 @@ async def upload_dataset(
     # Determine target workspace
     if workspace_id:
         try:
-            ws_uuid = uuid.UUID(workspace_id)
+            ws_uuid = uuid.UUID(str(workspace_id))
             workspace = db.query(Workspace).filter(Workspace.id == ws_uuid).first()
             if not workspace:
                 workspace = get_user_default_workspace(current_user, db)
@@ -130,6 +130,7 @@ async def upload_dataset(
     }
 
 @router.get("", response_model=List[dict])
+@router.get("/", response_model=List[dict], include_in_schema=False)
 def list_datasets(
     workspace_id: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
@@ -137,7 +138,7 @@ def list_datasets(
 ):
     if workspace_id:
         try:
-            ws_uuid = uuid.UUID(workspace_id)
+            ws_uuid = uuid.UUID(str(workspace_id))
             query = db.query(Dataset).filter(Dataset.workspace_id == ws_uuid)
         except ValueError:
             query = db.query(Dataset).filter(Dataset.uploaded_by == current_user.id)

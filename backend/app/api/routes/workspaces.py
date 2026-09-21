@@ -1,4 +1,3 @@
-from fastapi import APIRouter
 import uuid
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,23 +5,20 @@ from sqlalchemy.orm import Session
 from app.config.database import get_db
 from app.api.dependencies import get_current_user, get_current_workspace, check_permission
 from app.models.user import User
-from app.models.workspace import Workspace, WorkspaceMember, RoleEnum
+from app.models.workspace import Workspace, WorkspaceMember
 from app.models.subscription import Subscription
 from app.schemas.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceMemberResponse, InviteMemberRequest
 
-router = APIRouter()
 router = APIRouter(prefix="/api/v1/workspaces", tags=["Workspaces"])
 
-@router.get("/")
-def get_workspaces():
-    pass
 @router.get("", response_model=List[dict])
+@router.get("/", response_model=List[dict], include_in_schema=False)
 def list_workspaces(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     memberships = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == current_user.id).all()
     workspace_ids = [m.workspace_id for m in memberships]
     workspaces = db.query(Workspace).filter(Workspace.id.in_(workspace_ids)).all()
     
-    role_map = {m.workspace_id: m.role for m in memberships}
+    role_map = {m.workspace_id: getattr(m.role, 'value', m.role) for m in memberships}
     
     return [
         {
@@ -37,10 +33,8 @@ def list_workspaces(db: Session = Depends(get_db), current_user: User = Depends(
         for w in workspaces
     ]
 
-@router.post("/")
-def create_workspace():
-    pass
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_workspace(body: WorkspaceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     workspace = Workspace(
         id=uuid.uuid4(),
@@ -123,7 +117,7 @@ def list_workspace_members(workspace_id: uuid.UUID, db: Session = Depends(get_db
             "user_id": str(m.user_id),
             "name": u.name if u else "Unknown",
             "email": u.email if u else "Unknown",
-            "role": m.role,
+            "role": getattr(m.role, 'value', m.role),
             "created_at": str(m.created_at)
         })
     return results
@@ -135,7 +129,6 @@ def invite_member(workspace_id: uuid.UUID, body: InviteMemberRequest, db: Sessio
     
     invited_user = db.query(User).filter(User.email == body.email).first()
     if not invited_user:
-        # Create a user placeholder or invite
         invited_user = User(
             id=uuid.uuid4(),
             name=body.email.split("@")[0],
@@ -175,7 +168,8 @@ def remove_member(workspace_id: uuid.UUID, member_id: uuid.UUID, db: Session = D
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
         
-    if member.role == "owner":
+    role_str = getattr(member.role, 'value', member.role)
+    if role_str == "owner":
         raise HTTPException(status_code=400, detail="Cannot remove workspace owner")
         
     db.delete(member)
