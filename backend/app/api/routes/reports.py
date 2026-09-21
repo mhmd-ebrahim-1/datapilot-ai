@@ -15,7 +15,29 @@ from app.models.report import Report
 from app.services.reporting.report_generator import create_report_for_dataset
 from app.services.ingestion.storage import get_file_path
 
+from app.models.workspace import WorkspaceMember
+
 router = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
+
+def check_report_access(report: Report, user: User, db: Session, require_write: bool = False):
+    """Verify that the user has permission to access or modify this report."""
+    if user.role in ["admin", "superadmin"]:
+        return True
+        
+    if report.created_by == user.id:
+        return True
+        
+    if report.workspace_id:
+        membership = db.query(WorkspaceMember).filter(
+            WorkspaceMember.workspace_id == report.workspace_id,
+            WorkspaceMember.user_id == user.id
+        ).first()
+        if membership:
+            if require_write and membership.role not in ["owner", "admin"]:
+                raise HTTPException(status_code=403, detail="Insufficient workspace permissions to modify this report")
+            return True
+            
+    raise HTTPException(status_code=403, detail="You do not have access to this report")
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED, include_in_schema=False)
@@ -54,7 +76,15 @@ async def create_report(body: dict, db: Session = Depends(get_db), current_user:
 @router.get("", response_model=list)
 @router.get("/", response_model=list, include_in_schema=False)
 async def list_reports(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    reports = db.query(Report).filter(Report.created_by == current_user.id).order_by(Report.created_at.desc()).all()
+    if current_user.role in ["admin", "superadmin"]:
+        reports = db.query(Report).order_by(Report.created_at.desc()).all()
+    else:
+        memberships = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == current_user.id).all()
+        ws_ids = [m.workspace_id for m in memberships]
+        reports = db.query(Report).filter(
+            (Report.created_by == current_user.id) | (Report.workspace_id.in_(ws_ids))
+        ).order_by(Report.created_at.desc()).all()
+        
     results = []
     for r in reports:
         d = db.query(Dataset).filter(Dataset.id == r.dataset_id).first()
@@ -74,6 +104,8 @@ async def get_report(report_id: UUID, db: Session = Depends(get_db), current_use
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
         
+    check_report_access(report, current_user, db)
+        
     d = db.query(Dataset).filter(Dataset.id == report.dataset_id).first()
     return {
         "id": str(report.id),
@@ -89,6 +121,8 @@ async def download_report(report_id: UUID, db: Session = Depends(get_db), curren
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+        
+    check_report_access(report, current_user, db)
         
     abs_path = get_file_path(report.storage_path)
     if not os.path.exists(abs_path):
@@ -108,6 +142,8 @@ async def delete_report(report_id: UUID, db: Session = Depends(get_db), current_
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
         
+    check_report_access(report, current_user, db, require_write=True)
+        
     if report.storage_path:
         abs_path = get_file_path(report.storage_path)
         if os.path.exists(abs_path):
@@ -119,3 +155,4 @@ async def delete_report(report_id: UUID, db: Session = Depends(get_db), current_
     db.delete(report)
     db.commit()
     return {"message": "Report deleted successfully", "id": str(report_id)}
+

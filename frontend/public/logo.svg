@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44" fill="none">
+  <defs>
+    <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="50%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="logo-accent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+  <!-- Mark -->
+  <g transform="translate(2, 2)">
+    <rect width="40" height="40" rx="10" fill="url(#logo-grad)" />
+    <path d="M10 28V22C10 20.8954 10.8954 20 12 20H13C14.1046 20 15 20.8954 15 22V28" fill="white" fill-opacity="0.85" />
+    <path d="M17 28V16C17 14.8954 17.8954 14 19 14H20C21.1046 14 22 14.8954 22 16V28" fill="white" />
+    <path d="M24 28V11C24 9.89543 24.8954 9 26 9H27C28.1046 9 29 9.89543 29 11V28" fill="white" fill-opacity="0.95" />
+    <circle cx="30" cy="9" r="3" fill="url(#logo-accent)" />
+    <path d="M12 23L19 17L26 12" stroke="url(#logo-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- Text -->
+  <text x="52" y="28" font-family="system-ui, -apple-system, 'Inter', sans-serif" font-weight="800" font-size="20" fill="#1e293b" letter-spacing="-0.5px">
+    DataPilot <tspan fill="#4f46e5">AI</tspan>
+  </text>
+</svg>
+

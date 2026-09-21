@@ -98,8 +98,8 @@ export default function DatasetDetailPage() {
         title: "Report Generated!",
         description: "Your executive PDF report is ready. Downloading now..."
       });
-      // Trigger download
-      window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/reports/${reportRes.id}/download`, '_blank');
+      // Trigger authenticated download
+      await api.downloadFile(`/api/v1/reports/${reportRes.id}/download`, `${dataset?.name || 'Dataset'}_Executive_Report.pdf`);
     } catch (err: any) {
       toast({
         title: "Report Generation Failed",

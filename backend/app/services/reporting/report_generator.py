@@ -1,5 +1,6 @@
 import json
 import uuid
+import logging
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.models.dataset import Dataset
@@ -8,16 +9,21 @@ from app.models.insight import Insight
 from app.models.report import Report
 from app.services.reporting.pdf_generator import generate_pdf_report
 
+logger = logging.getLogger("datapilot.reports")
+
 def create_report_for_dataset(
     db: Session,
     dataset_id: uuid.UUID,
     user_id: uuid.UUID,
     title: str = "Executive Dataset Report"
 ) -> Report:
-    """Orchestrate report data gathering and generate a PDF."""
+    """Orchestrate verified report metrics gathering and render executive PDF."""
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise ValueError("Dataset not found")
+        
+    if dataset.status == "failed":
+        raise ValueError(f"Cannot generate report for a failed dataset: {dataset.error_message or 'Processing error'}")
         
     analysis = db.query(Analysis).filter(Analysis.dataset_id == dataset.id).order_by(Analysis.created_at.desc()).first()
     
@@ -45,11 +51,14 @@ def create_report_for_dataset(
         
     report_payload = {
         "title": title,
-        "dataset_name": dataset.name,
+        "dataset_name": dataset.original_filename or dataset.name,
+        "row_count": dataset.row_count or 0,
+        "column_count": dataset.column_count or 0,
         "analysis": analysis_data,
         "insights": insights_data,
-        "dataset_type": dataset.dataset_type or "General",
-        "quality_score": dataset.quality_score or 100.0
+        "cleaning_summary": dataset.cleaning_summary_json or [],
+        "dataset_type": dataset.dataset_type or "General Analytics",
+        "quality_score": dataset.quality_score if dataset.quality_score is not None else 90.0
     }
     
     storage_path = generate_pdf_report(report_payload, str(dataset.workspace_id))
@@ -67,5 +76,5 @@ def create_report_for_dataset(
     db.add(report)
     db.commit()
     db.refresh(report)
+    logger.info(f"Executive Report '{title}' (ID: {report.id}) generated successfully at {storage_path}")
     return report
-

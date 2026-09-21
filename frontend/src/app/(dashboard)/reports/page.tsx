@@ -32,18 +32,25 @@ export default function ReportsPage() {
 
   const createReportMutation = useMutation({
     mutationFn: (body: { dataset_id: string; title: string }) => api.post<any>("/api/v1/reports/", body),
-    onSuccess: (newReport) => {
+    onSuccess: async (newReport) => {
       queryClient.invalidateQueries({ queryKey: ["reports-list"] });
       setIsDialogOpen(false);
       setReportTitle("");
       setSelectedDataset("");
       toast({
         title: "Report Generated",
-        description: "Your PDF report is ready for download."
+        description: "Your PDF report is ready. Downloading now..."
       });
-      // Download right away
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      window.open(`${baseUrl}/api/v1/reports/${newReport.id}/download`, "_blank");
+      // Authenticated download
+      try {
+        await api.downloadFile(`/api/v1/reports/${newReport.id}/download`, `${newReport.title || 'Executive_Report'}.pdf`);
+      } catch (err: any) {
+        toast({
+          title: "Download Failed",
+          description: err.message || "Failed to download PDF.",
+          variant: "destructive"
+        });
+      }
     },
     onError: (err: any) => {
       toast({
@@ -62,9 +69,16 @@ export default function ReportsPage() {
     }
   });
 
-  const handleDownload = (reportId: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    window.open(`${baseUrl}/api/v1/reports/${reportId}/download`, "_blank");
+  const handleDownload = async (reportId: string, title?: string) => {
+    try {
+      await api.downloadFile(`/api/v1/reports/${reportId}/download`, `${title || 'Executive_Report'}.pdf`);
+    } catch (err: any) {
+      toast({
+        title: "Download Failed",
+        description: err.message || "Could not download report.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCreate = (e: React.FormEvent) => {
@@ -134,7 +148,7 @@ export default function ReportsPage() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => handleDownload(report.id)}
+                      onClick={() => handleDownload(report.id, report.title)}
                       className="text-xs"
                     >
                       <Download className="h-3.5 w-3.5 mr-1" /> Download
