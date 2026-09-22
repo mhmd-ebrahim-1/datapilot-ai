@@ -147,17 +147,16 @@ docker compose up
 
 ### ☁️ Free Cloud Deployment (100% Free — No Credit Card Required)
 
-Deploy DataPilot AI using verified zero-card platforms:
+Deploy DataPilot AI for demos and testing using verified zero-card platforms:
 
 1. **Database**: Create a free serverless PostgreSQL instance on [Neon](https://neon.tech) (Free tier, 0 card required). Copy your `DATABASE_URL`.
-2. **Backend API**: Deploy to [Hugging Face Spaces](https://huggingface.co/spaces) (Free 16GB RAM CPU container, 0 card required):
-   - Create a new Space, select **Docker** SDK (Blank).
-   - Push or sync `backend/` files to the Space repository.
-   - Add Space Secrets: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`.
-   - Your API will be live with public HTTPS at `https://<user>-<space>.hf.space`.
-3. **Frontend**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required):
+2. **Backend API**: Deploy to [Zeabur](https://zeabur.com) (Free Plan, 0 card required):
+   - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`, select `backend` directory (detected via Dockerfile).
+   - Add environment variables: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`.
+   - Your API will be live with public HTTPS at `https://<service-name>.zeabur.app`.
+3. **Frontend**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required — Note: Vercel Hobby is restricted to personal/non-commercial projects):
    - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`, set Root Directory to `frontend`.
-   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<user>-<space>.hf.space`.
+   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<your-backend-api>.zeabur.app`.
    - Click **Deploy**.
 
 
