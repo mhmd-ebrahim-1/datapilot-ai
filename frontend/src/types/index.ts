@@ -33,6 +33,16 @@ export interface WorkspaceMember {
   created_at?: string;
 }
 
+export interface PresignedUploadResponse {
+  dataset_id: string;
+  upload_url: string;
+  method: string;
+  storage_path: string;
+  headers?: Record<string, string>;
+  expires_in?: number;
+  is_direct_s3?: boolean;
+}
+
 export interface Dataset {
   id: string;
   name: string;
@@ -49,6 +59,7 @@ export interface Dataset {
   quality_score?: number;
   qualityScore?: number;
   status: "uploaded" | "processing" | "ready" | "failed" | "deleted" | string;
+  status: "pending_upload" | "uploaded" | "processing" | "ready" | "failed" | "deleted" | string;
   error_message?: string;
   profile?: any;
   profile_json?: any;

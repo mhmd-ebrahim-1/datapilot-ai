@@ -167,5 +167,11 @@ def generate_pdf_report(report_data: Dict[str, Any], workspace_id: str) -> str:
     story.append(Paragraph(methodology_text, subtitle_style))
     
     doc.build(story)
+    relative_path = f"{workspace_id}/reports/{filename}"
+    
+    from app.services.ingestion.storage import get_storage_service
+    get_storage_service().upload_file_from_path(file_path, relative_path, "application/pdf")
+    
     # Return relative storage path
     return f"{workspace_id}/reports/{filename}"
+    return relative_path

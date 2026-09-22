@@ -1,7 +1,26 @@
 from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 from datetime import datetime
+
+class PresignedUploadRequest(BaseModel):
+    filename: str = Field(..., description="Original filename including extension (e.g. data.csv, sales.xlsx)")
+    file_size: int = Field(..., gt=0, description="Size in bytes")
+    content_type: Optional[str] = Field(None, description="MIME type of the file")
+    workspace_id: Optional[UUID] = Field(None, description="Optional target workspace ID")
+
+class PresignedUploadResponse(BaseModel):
+    dataset_id: UUID
+    upload_url: str
+    method: str = "PUT"
+    storage_path: str
+    headers: Dict[str, str] = {}
+    expires_in: int = 600
+    is_direct_s3: bool = False
+
+class ProcessDatasetRequest(BaseModel):
+    dataset_id: Optional[UUID] = None
 
 class DatasetResponse(BaseModel):
     id: UUID

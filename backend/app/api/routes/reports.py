@@ -118,11 +118,34 @@ async def get_report(report_id: UUID, db: Session = Depends(get_db), current_use
 
 @router.get("/{report_id}/download")
 async def download_report(report_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def download_report(
+    report_id: UUID,
+    redirect: bool = True,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from fastapi.responses import RedirectResponse
+    from app.services.ingestion.storage import get_storage_service
+    
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
         
     check_report_access(report, current_user, db)
+    safe_filename = f"{report.title.replace(' ', '_')}.pdf"
+    
+    # Check if S3 presigned download URL is available
+    storage_service = get_storage_service()
+    if report.storage_path:
+        presigned_url = storage_service.generate_presigned_download_url(
+            report.storage_path,
+            expires_in=600,
+            filename=safe_filename
+        )
+        if presigned_url:
+            if not redirect:
+                return {"download_url": presigned_url, "filename": safe_filename}
+            return RedirectResponse(url=presigned_url, status_code=307)
         
     abs_path = get_file_path(report.storage_path)
     if not os.path.exists(abs_path):

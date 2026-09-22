@@ -92,6 +92,35 @@ class Settings(BaseSettings):
     PAYMENT_PROVIDER: str = "mock"
     DEMO_MODE: bool = True
 
+    @field_validator("STORAGE_PROVIDER", mode="before")
+    @classmethod
+    def assemble_storage_provider(cls, v: Optional[str]) -> str:
+        if v:
+            return v.lower().strip()
+        if os.getenv("STORAGE_BUCKET") or os.getenv("SUPABASE_BUCKET_NAME") or os.getenv("S3_BUCKET_NAME"):
+            return "s3"
+        return "local"
+
+    @field_validator("STORAGE_BUCKET", mode="before")
+    @classmethod
+    def assemble_storage_bucket(cls, v: Optional[str]) -> Optional[str]:
+        return v or os.getenv("STORAGE_BUCKET") or os.getenv("SUPABASE_BUCKET_NAME") or os.getenv("S3_BUCKET_NAME")
+
+    @field_validator("STORAGE_ENDPOINT", mode="before")
+    @classmethod
+    def assemble_storage_endpoint(cls, v: Optional[str]) -> Optional[str]:
+        return v or os.getenv("STORAGE_ENDPOINT") or os.getenv("SUPABASE_S3_ENDPOINT") or os.getenv("S3_ENDPOINT_URL")
+
+    @field_validator("STORAGE_ACCESS_KEY", mode="before")
+    @classmethod
+    def assemble_storage_access_key(cls, v: Optional[str]) -> Optional[str]:
+        return v or os.getenv("STORAGE_ACCESS_KEY") or os.getenv("SUPABASE_S3_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_KEY_ID")
+
+    @field_validator("STORAGE_SECRET_KEY", mode="before")
+    @classmethod
+    def assemble_storage_secret_key(cls, v: Optional[str]) -> Optional[str]:
+        return v or os.getenv("STORAGE_SECRET_KEY") or os.getenv("SUPABASE_S3_SECRET_ACCESS_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
+
     @field_validator("JWT_SECRET", mode="before")
     @classmethod
     def assemble_jwt_secret(cls, v: Optional[str]) -> str:
