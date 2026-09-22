@@ -54,3 +54,4 @@ databases:
     databaseName: datapilot
     user: datapilot
     plan: free
+

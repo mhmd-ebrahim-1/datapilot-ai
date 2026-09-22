@@ -54,7 +54,8 @@ class Settings(BaseSettings):
         "http://localhost:3002",
         "http://127.0.0.1:3000",
         "https://datapilot-ai.vercel.app",
-        "https://datapilot.ai"
+        "https://datapilot.ai",
+        "https://datapilot-api.koyeb.app"
     ]
     
     # Database

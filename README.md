@@ -145,6 +145,21 @@ docker compose up
 # API Docs: http://localhost:8000/docs
 ```
 
+### ☁️ Free Cloud Deployment (No Credit Card Required)
+
+Deploy DataPilot AI using modern zero-card free-tier platforms:
+
+1. **Database**: Create a free PostgreSQL instance on [Neon](https://neon.tech) or [Supabase](https://supabase.com) (0 card required). Copy your `DATABASE_URL`.
+2. **Backend**: Deploy to [Koyeb](https://koyeb.com) (Hobby tier, 0 card required):
+   - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`.
+   - Set workdir to `backend`, builder to `Dockerfile` (or Buildpack).
+   - Add environment variables: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`.
+3. **Frontend**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required):
+   - Import repository, set Root Directory to `frontend`.
+   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<your-koyeb-api>.koyeb.app`.
+   - Deploy.
+
+
 ### Manual Setup
 
 #### Backend
