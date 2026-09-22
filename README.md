@@ -150,13 +150,13 @@ docker compose up
 Deploy DataPilot AI for demos and testing using verified zero-card platforms:
 
 1. **Database**: Create a free serverless PostgreSQL instance on [Neon](https://neon.tech) (Free tier, 0 card required). Copy your `DATABASE_URL`.
-2. **Backend API**: Deploy to [Zeabur](https://zeabur.com) (Free Plan, 0 card required):
-   - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`, select `backend` directory (detected via Dockerfile).
+2. **Backend API (Vercel Serverless)**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required):
+   - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`, set Root Directory to `backend` (configured with `backend/vercel.json` via `@vercel/python`).
    - Add environment variables: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`.
-   - Your API will be live with public HTTPS at `https://<service-name>.zeabur.app`.
-3. **Frontend**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required — Note: Vercel Hobby is restricted to personal/non-commercial projects):
+   - Your API will be live with public HTTPS at `https://<your-backend-project>.vercel.app`.
+3. **Frontend (Vercel)**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required — *Note: Vercel Hobby is restricted to personal/non-commercial projects*):
    - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`, set Root Directory to `frontend`.
-   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<your-backend-api>.zeabur.app`.
+   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<your-backend-project>.vercel.app`.
    - Click **Deploy**.
 
 
