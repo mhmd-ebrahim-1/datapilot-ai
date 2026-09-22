@@ -1,4 +1,5 @@
 import os
+import secrets
 from typing import Dict, Any, List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,19 +44,18 @@ class Settings(BaseSettings):
     APP_NAME: str = "DataPilot AI"
     APP_ENV: str = "development"
     DEBUG: bool = False
-    SECRET_KEY: str = "datapilot-ai-production-super-secret-key-at-least-32-chars"
+    SECRET_KEY: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"
     
-    # CORS
+    # CORS Origins
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:3002",
         "http://127.0.0.1:3000",
         "https://datapilot-ai.vercel.app",
-        "https://datapilot.ai",
-        "https://datapilot-api.koyeb.app"
+        "https://datapilot.ai"
     ]
     
     # Database
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # Authentication & JWT
-    JWT_SECRET: str = "datapilot-ai-jwt-secret-key-secure-at-least-32-chars"
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours in minutes
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -91,6 +91,21 @@ class Settings(BaseSettings):
     # Payment / Billing
     PAYMENT_PROVIDER: str = "mock"
     DEMO_MODE: bool = True
+
+    @field_validator("JWT_SECRET", mode="before")
+    @classmethod
+    def assemble_jwt_secret(cls, v: Optional[str]) -> str:
+        if v and len(v.strip()) >= 16:
+            return v.strip()
+        # Fallback to a cryptographically secure random secret generated per process runtime
+        return os.getenv("JWT_SECRET") or secrets.token_urlsafe(48)
+
+    @field_validator("SECRET_KEY", mode="before")
+    @classmethod
+    def assemble_secret_key(cls, v: Optional[str]) -> str:
+        if v and len(v.strip()) >= 16:
+            return v.strip()
+        return os.getenv("SECRET_KEY") or secrets.token_urlsafe(48)
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

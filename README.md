@@ -145,19 +145,20 @@ docker compose up
 # API Docs: http://localhost:8000/docs
 ```
 
-### ☁️ Free Cloud Deployment (No Credit Card Required)
+### ☁️ Free Cloud Deployment (100% Free — No Credit Card Required)
 
-Deploy DataPilot AI using modern zero-card free-tier platforms:
+Deploy DataPilot AI using verified zero-card platforms:
 
-1. **Database**: Create a free PostgreSQL instance on [Neon](https://neon.tech) or [Supabase](https://supabase.com) (0 card required). Copy your `DATABASE_URL`.
-2. **Backend**: Deploy to [Koyeb](https://koyeb.com) (Hobby tier, 0 card required):
-   - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`.
-   - Set workdir to `backend`, builder to `Dockerfile` (or Buildpack).
-   - Add environment variables: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`.
+1. **Database**: Create a free serverless PostgreSQL instance on [Neon](https://neon.tech) (Free tier, 0 card required). Copy your `DATABASE_URL`.
+2. **Backend API**: Deploy to [Hugging Face Spaces](https://huggingface.co/spaces) (Free 16GB RAM CPU container, 0 card required):
+   - Create a new Space, select **Docker** SDK (Blank).
+   - Push or sync `backend/` files to the Space repository.
+   - Add Space Secrets: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`.
+   - Your API will be live with public HTTPS at `https://<user>-<space>.hf.space`.
 3. **Frontend**: Deploy to [Vercel](https://vercel.com) (Hobby tier, 0 card required):
-   - Import repository, set Root Directory to `frontend`.
-   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<your-koyeb-api>.koyeb.app`.
-   - Deploy.
+   - Import GitHub repository `mhmd-ebrahim-1/datapilot-ai`, set Root Directory to `frontend`.
+   - Add environment variable: `NEXT_PUBLIC_API_URL=https://<user>-<space>.hf.space`.
+   - Click **Deploy**.
 
 
 ### Manual Setup
