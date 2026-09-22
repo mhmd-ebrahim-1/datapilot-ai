@@ -1,7 +1,8 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 from app.api.routes import (
     auth,
     workspaces,
@@ -16,7 +17,7 @@ from app.api.routes import (
     users,
     admin
 )
-from app.config.database import engine, Base
+from app.config.database import engine, Base, get_db
 from app.config.settings import settings
 
 # Ensure upload/storage directory exists
@@ -29,7 +30,6 @@ Base.metadata.create_all(bind=engine)
 if settings.DATABASE_URL.startswith("sqlite"):
     try:
         with engine.connect() as conn:
-            # Check error_message column in datasets table
             result = conn.execute(text("PRAGMA table_info(datasets);")).fetchall()
             col_names = [row[1] for row in result]
             if "error_message" not in col_names:
@@ -46,9 +46,15 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Explicit allowed origins for CORS security in production
+allowed_origins = settings.cors_origin_list
+if not allowed_origins:
+    allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$" if settings.APP_ENV != "production" or any("vercel.app" in o for o in allowed_origins) else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,5 +75,16 @@ app.include_router(users.router)
 app.include_router(admin.router)
 
 @app.get("/health", tags=["Health"])
-def health():
-    return {"status": "ok", "app": settings.APP_NAME, "environment": settings.APP_ENV}
+def health(db: Session = Depends(get_db)):
+    db_status = "healthy"
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "unhealthy"
+        
+    return {
+        "status": "healthy" if db_status == "healthy" else "degraded",
+        "app": settings.APP_NAME,
+        "environment": settings.APP_ENV,
+        "database": db_status
+    }

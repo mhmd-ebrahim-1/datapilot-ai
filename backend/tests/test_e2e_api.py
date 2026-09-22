@@ -120,3 +120,12 @@ def test_full_saas_lifecycle_e2e(client):
     get_del = client.get(f"/api/v1/datasets/{dataset_id}", headers=headers)
     assert get_del.status_code == 404
 
+def test_production_health_endpoint(client):
+    res = client.get("/health")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] in ["healthy", "degraded"]
+    assert data["database"] == "healthy"
+    assert "app" in data
+    assert "environment" in data
+

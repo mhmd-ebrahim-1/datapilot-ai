@@ -1,0 +1,56 @@
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI Production Web Service
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: datapilot-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 4
+    healthCheckPath: /health
+    disk:
+      name: datapilot-uploads
+      mountPath: /var/data/uploads
+      sizeGB: 10
+    envVars:
+      - key: APP_NAME
+        value: DataPilot AI
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: datapilot-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: STORAGE_PATH
+        value: /var/data/uploads
+      - key: CORS_ORIGINS
+        value: "https://datapilot-ai.vercel.app,https://datapilot.ai,http://localhost:3000"
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL
+        value: gemini-2.0-flash
+      - key: GEMINI_API_KEY
+        sync: false
+
+databases:
+  # ---------------------------------------------------------------------------
+  # Managed PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  - name: datapilot-db
+    databaseName: datapilot
+    user: datapilot
+    plan: free
